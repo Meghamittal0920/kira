@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>キラ — 新世界の神</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Shippori+Mincho+B1:wght@400;700;800&family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #050404;
+    --ink-2: #0d0a0a;
+    --paper: #efe8dc;
+    --muted: #8a7f76;
+    --blood: #c1121f;
+    --blood-hot: #ff2a2a;
+    --ember: #ff7a1a;
+    --brush: "Yuji Syuku", serif;
+    --mincho: "Shippori Mincho B1", serif;
+    --heavy: "Dela Gothic One", sans-serif;
+    --gothic: "Zen Kaku Gothic New", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--ink); }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--mincho);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.loading { overflow: hidden; }
+  ::selection { background: var(--blood); color: #fff; }
+
+  /* ---------- grain + vignette over everything ---------- */
+  .grain {
+    position: fixed; inset: -50%; z-index: 90; pointer-events: none; opacity: .07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: grain 1s steps(6) infinite;
+  }
+  @keyframes grain {
+    0%{transform:translate(0,0)} 20%{transform:translate(-3%,2%)} 40%{transform:translate(2%,-4%)}
+    60%{transform:translate(-4%,-1%)} 80%{transform:translate(3%,3%)} 100%{transform:translate(0,0)}
+  }
+
+  /* ---------- loader ---------- */
+  .loader {
+    position: fixed; inset: 0; z-index: 100; background: var(--ink);
+    display: grid; place-items: center; transition: opacity 1s ease, visibility 1s;
+  }
+  .loader.done { opacity: 0; visibility: hidden; }
+  .loader-inner { text-align: center; }
+  .loader-kanji {
+    font-family: var(--brush); font-size: clamp(90px, 18vw, 180px); line-height: 1;
+    color: var(--blood); text-shadow: 0 0 40px rgba(193,18,31,.6);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: .45; transform: scale(.96); } }
+  .loader-bar { width: 200px; height: 1px; background: #2a2222; margin: 28px auto 12px; overflow: hidden; }
+  .loader-bar i { display: block; height: 100%; width: 0; background: var(--blood-hot); transition: width .2s; }
+  .loader-txt { font-family: var(--gothic); font-size: 11px; letter-spacing: .5em; color: var(--muted); }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 22px clamp(16px, 4vw, 48px); mix-blend-mode: difference; pointer-events: none;
+  }
+  .logo { font-family: var(--brush); font-size: 22px; letter-spacing: .15em; color: #fff; }
+  .nav-meta { font-family: var(--gothic); font-size: 11px; letter-spacing: .4em; color: #fff; }
+
+  .side-progress {
+    position: fixed; right: clamp(10px, 2vw, 28px); top: 50%; transform: translateY(-50%);
+    z-index: 50; writing-mode: vertical-rl; font-family: var(--gothic); font-size: 10px;
+    letter-spacing: .5em; color: var(--muted); display: flex; align-items: center; gap: 14px;
+  }
+  .side-progress .track { width: 1px; height: 120px; background: #2b2424; position: relative; }
+  .side-progress .track i { position: absolute; left: 0; top: 0; width: 1px; height: 0; background: var(--blood-hot); }
+
+  /* ---------- pinned scroll sections ---------- */
+  .pin { position: relative; }
+  .stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+  .stage canvas.seq { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ===== 01 LAUGH ===== */
+  #laugh { height: 520vh; }
+  #laugh .stage { background: #000; }
+  #embers { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; mix-blend-mode: screen; }
+  .shade { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+  .shade.dark { background: #000; }
+  .shade.vignette { background: radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,.85) 100%); }
+  .shade.red { background: radial-gradient(ellipse at center, transparent 30%, rgba(160,0,10,.55) 100%); mix-blend-mode: multiply; opacity: 0; }
+  .flash { position: absolute; inset: 0; z-index: 8; background: var(--blood-hot); opacity: 0; pointer-events: none; mix-blend-mode: screen; }
+
+  .hero-title {
+    position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; text-align: center;
+    pointer-events: none;
+  }
+  .hero-title .kira {
+    font-family: var(--brush); font-size: clamp(120px, 30vw, 420px); line-height: .9;
+    color: #fff; letter-spacing: -.02em;
+    text-shadow: 0 0 60px rgba(255,42,42,.45), 0 0 4px rgba(255,255,255,.4);
+  }
+  .hero-title .sub {
+    margin-top: 18px; font-family: var(--mincho); font-weight: 700;
+    font-size: clamp(14px, 1.6vw, 20px); letter-spacing: 1em; padding-left: 1em; color: var(--paper);
+  }
+  .hero-title .en {
+    margin-top: 10px; font-family: var(--gothic); font-size: 10px; letter-spacing: .6em; color: var(--muted);
+    padding-left: .6em;
+  }
+
+  .scroll-hint {
+    position: absolute; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: 6;
+    font-family: var(--gothic); font-size: 10px; letter-spacing: .5em; color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .scroll-hint i { width: 1px; height: 48px; background: linear-gradient(var(--blood-hot), transparent); animation: drip 1.8s ease-in-out infinite; transform-origin: top; }
+  @keyframes drip { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
+
+  .vert-side {
+    position: absolute; z-index: 6; writing-mode: vertical-rl; font-family: var(--mincho); font-weight: 800;
+    color: var(--paper); pointer-events: none; text-shadow: 0 2px 20px #000;
+  }
+  .vert-side.l { left: clamp(16px, 5vw, 70px); top: 14vh; font-size: clamp(16px, 2vw, 26px); letter-spacing: .5em; }
+  .vert-side.r { right: clamp(40px, 6vw, 90px); bottom: 10vh; font-size: clamp(12px, 1.2vw, 15px); letter-spacing: .6em; color: var(--muted); font-weight: 400; }
+
+  .plan {
+    position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; pointer-events: none;
+    opacity: 0;
+  }
+  .plan-inner { text-align: center; }
+  .plan .jp {
+    font-family: var(--brush); font-size: clamp(80px, 16vw, 230px); line-height: 1; color: #fff;
+    text-shadow: 0 0 2px #fff, 0 0 50px rgba(255,30,30,.9), 6px 6px 0 #000;
+  }
+  .plan .en { font-family: var(--gothic); font-size: 11px; letter-spacing: .8em; padding-left: .8em; margin-top: 18px; color: var(--paper); text-shadow: 0 1px 10px #000; }
+
+  /* ===== 02 RULES ===== */
+  #rules { height: 480vh; }
+  #rules .stage { background: radial-gradient(ellipse at 30% 50%, #171111 0%, var(--ink) 70%); }
+  #rules canvas.seq { width: 62%; right: auto; opacity: .95;
+    -webkit-mask-image: linear-gradient(90deg, #000 60%, transparent);
+            mask-image: linear-gradient(90deg, #000 60%, transparent); }
+  .chapter {
+    position: absolute; top: 12vh; left: clamp(16px, 4vw, 48px); z-index: 4;
+    font-family: var(--gothic); font-size: 11px; letter-spacing: .5em; color: var(--muted);
+  }
+  .chapter b { display: block; font-family: var(--brush); font-weight: 400; font-size: clamp(34px, 4.5vw, 60px); letter-spacing: .1em; color: var(--paper); margin-top: 10px; }
+  .rules-wrap {
+    position: absolute; right: clamp(48px, 7vw, 120px); top: 50%; transform: translateY(-50%); z-index: 4;
+    display: flex; flex-direction: row-reverse; gap: clamp(18px, 2.4vw, 36px); height: 72vh;
+  }
+  .rule {
+    writing-mode: vertical-rl; display: flex; gap: 14px; opacity: 0; filter: blur(8px);
+    transform: translateY(30px); transition: opacity .9s ease, filter .9s ease, transform .9s cubic-bezier(.2,.8,.2,1);
+  }
+  .rule.on { opacity: 1; filter: blur(0); transform: none; }
+  .rule .num { font-family: var(--heavy); color: var(--blood-hot); font-size: 14px; letter-spacing: .2em; }
+  .rule .jp { font-family: var(--mincho); font-weight: 700; font-size: clamp(16px, 1.65vw, 23px); line-height: 1.9; letter-spacing: .14em; }
+  .rule .en { font-family: var(--gothic); font-size: 10px; letter-spacing: .25em; color: var(--muted); writing-mode: vertical-rl; text-orientation: sideways; max-height: 60vh; }
+  .rule.first .jp { color: #fff; font-size: clamp(20px, 2.3vw, 32px); }
+
+  .how-to {
+    position: absolute; left: clamp(16px, 4vw, 48px); bottom: 8vh; z-index: 4;
+    font-family: var(--gothic); font-size: 10px; letter-spacing: .5em; color: var(--muted);
+  }
+  .how-to span { color: var(--blood-hot); }
+
+  /* ===== 02 EYES ===== */
+  #eyes { height: 190vh; }
+  #eyes .stage { background: #000; }
+  #eyes .shade.vignette { z-index: 2; }
+  .eyes-label { position: absolute; top: 12vh; left: clamp(16px, 4vw, 48px); z-index: 4; font-family: var(--gothic); font-size: 11px; letter-spacing: .5em; color: var(--muted); }
+  .eyes-label b { display: block; font-family: var(--brush); font-weight: 400; font-size: clamp(34px, 4.5vw, 60px); letter-spacing: .1em; color: var(--paper); margin-top: 10px; }
+  .watching { position: absolute; right: clamp(40px, 6vw, 90px); top: 12vh; z-index: 4; writing-mode: vertical-rl; font-family: var(--mincho); font-weight: 800; font-size: clamp(18px, 2.2vw, 30px); letter-spacing: .5em; text-shadow: 0 2px 20px #000; }
+  .watching span { color: var(--blood-hot); }
+  .look-hint { position: absolute; left: 50%; bottom: 5vh; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 18px; font-family: var(--gothic); font-size: 10px; letter-spacing: .5em; color: var(--muted); white-space: nowrap; }
+  .look-hint .rail { position: relative; width: 120px; height: 1px; background: #3a2e2e; }
+  .look-hint .dot { position: absolute; top: -3px; left: 50%; width: 7px; height: 7px; margin-left: -3px; border-radius: 50%; background: var(--blood-hot); box-shadow: 0 0 12px var(--blood-hot); }
+
+  /* ===== 03 DARK / GHOST CURSOR ===== */
+  #dark { height: 160vh; cursor: none; }
+  #dark .stage { background: #000; }
+  #dark .scene { position: absolute; inset: 0; background: url("assets/throne.jpg") center / cover no-repeat; filter: contrast(1.1) saturate(1.15); }
+  #fog { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; display: block; }
+  .shini-eye { position: absolute; z-index: 3; left: 0; top: 0; width: 34px; height: 14px; margin: -7px 0 0 -17px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(ellipse, #ff3b3b 0%, rgba(255,0,0,.55) 35%, transparent 70%); filter: blur(1px); }
+  .shini-eye::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: blink 5s infinite; }
+  @keyframes blink { 0%, 92%, 100% { opacity: .9; } 95% { opacity: 0; } }
+  .ghost { position: absolute; z-index: 5; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, #fff 0%, rgba(255,220,220,.6) 40%, transparent 70%); box-shadow: 0 0 30px 10px rgba(255,80,80,.25); mix-blend-mode: screen; }
+  .dark-copy { position: absolute; z-index: 4; left: clamp(16px, 6vw, 90px); bottom: 10vh; pointer-events: none; }
+  .dark-copy .big { font-family: var(--brush); font-size: clamp(48px, 8vw, 120px); line-height: 1.05; text-shadow: 0 6px 40px #000; }
+  .dark-copy .big em { font-style: normal; color: var(--blood-hot); }
+  .dark-copy .who { margin-top: 16px; font-family: var(--gothic); font-size: 11px; letter-spacing: .4em; color: var(--muted); }
+  .dark-hint { position: absolute; z-index: 4; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; transition: opacity 1s; }
+  .dark-hint .jp { font-family: var(--brush); font-size: clamp(30px, 4vw, 52px); letter-spacing: .3em; padding-left: .3em; color: #6d5f5a; }
+  .dark-hint .en { margin-top: 12px; font-family: var(--gothic); font-size: 10px; letter-spacing: .6em; padding-left: .6em; color: #4a3f3c; }
+  #dark.touched .dark-hint { opacity: 0; }
+  .dark-label { position: absolute; z-index: 4; top: 12vh; right: clamp(40px, 6vw, 90px); writing-mode: vertical-rl; font-family: var(--gothic); font-size: 11px; letter-spacing: .5em; color: #5a4d49; pointer-events: none; }
+
+  /* ---------- soft overlap between sections ---------- */
+  main > section { position: relative; }
+  #laugh { z-index: 1; } #eyes { z-index: 2; } #rules { z-index: 3; } #dark { z-index: 4; }
+  main > section + section {
+    margin-top: -45vh;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, rgba(0,0,0,.08) 7vh, rgba(0,0,0,.25) 14vh, rgba(0,0,0,.5) 22vh, rgba(0,0,0,.75) 30vh, rgba(0,0,0,.93) 38vh, #000 45vh);
+            mask-image: linear-gradient(to bottom, transparent 0, rgba(0,0,0,.08) 7vh, rgba(0,0,0,.25) 14vh, rgba(0,0,0,.5) 22vh, rgba(0,0,0,.75) 30vh, rgba(0,0,0,.93) 38vh, #000 45vh);
+  }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 760px) {
+    .side-progress { display: none; }
+    #rules canvas.seq { width: 100%; opacity: .35; -webkit-mask-image: none; mask-image: none; }
+    .rules-wrap { right: 16px; left: 16px; justify-content: flex-start; height: 62vh; top: 56%; overflow: hidden; gap: 16px; }
+    .rule .en { display: none; }
+    .vert-side.r { display: none; }
+    .watching { right: 16px; }
+    .dark-label { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .grain, .loader-kanji, .scroll-hint i { animation: none; }
+  }
+</style>
+</head>
+<body class="loading">
+
+<div class="loader" id="loader">
+  <div class="loader-inner">
+    <div class="loader-kanji">死</div>
+    <div class="loader-bar"><i id="loadBar"></i></div>
+    <div class="loader-txt" id="loadTxt">ノートを開いている… 0%</div>
+  </div>
+</div>
+
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="logo">デスノート</div>
+  <div class="nav-meta">新世界の神</div>
+</header>
+
+<div class="side-progress" aria-hidden="true"><span>審判</span><div class="track"><i id="progressBar"></i></div><span id="progressNum">01</span></div>
+
+<main>
+  <!-- ================= 01 · KIRA LAUGHS ================= -->
+  <section id="laugh" class="pin" data-frames="laugh" data-count="35">
+    <div class="stage">
+      <canvas class="seq"></canvas>
+      <div class="shade vignette"></div>
+      <div class="shade red" id="redShade"></div>
+      <div class="shade dark" id="darkShade"></div>
+      <canvas id="embers"></canvas>
+
+      <div class="hero-title" id="heroTitle">
+        <div>
+          <div class="kira">キラ</div>
+          <div class="sub">新世界の神</div>
+          <div class="en">THE GOD OF THE NEW WORLD</div>
+        </div>
+      </div>
+
+      <div class="vert-side l" id="vertL">この世界は、腐っている。</div>
+      <div class="vert-side r">第一章 ・ 嘲笑</div>
+
+      <div class="plan" id="plan">
+        <div class="plan-inner">
+          <div class="jp">計画通り</div>
+          <div class="en">JUST AS PLANNED</div>
+        </div>
+      </div>
+
+      <div class="flash" id="flash"></div>
+
+      <div class="scroll-hint" id="scrollHint">スクロール<i></i></div>
+    </div>
+  </section>
+
+  <!-- ================= 02 · EYES FOLLOW CURSOR ================= -->
+  <section id="eyes" data-frames="justice" data-count="70">
+    <div class="stage">
+      <canvas class="seq"></canvas>
+      <div class="shade vignette"></div>
+      <div class="eyes-label">第二章 ・ SURVEILLANCE<b>監視</b></div>
+      <div class="watching">いつも<span>見ている</span>ぞ</div>
+      <div class="look-hint">左<div class="rail"><i class="dot" id="lookDot"></i></div>右</div>
+    </div>
+  </section>
+
+  <!-- ================= 03 · RULES ================= -->
+  <section id="rules" class="pin" data-frames="note" data-count="70">
+    <div class="stage">
+      <canvas class="seq"></canvas>
+      <div class="chapter">第三章 ・ HOW TO USE<b>ノートの掟</b></div>
+
+      <div class="rules-wrap">
+        <div class="rule first"><span class="num">壱</span><p class="jp">このノートに名前を書かれた人間は死ぬ。</p><p class="en">The human whose name is written in this note shall die.</p></div>
+        <div class="rule"><span class="num">弐</span><p class="jp">書く人物の顔が頭に入っていないと効果はない。</p><p class="en">This note will not take effect unless the writer has the person's face in mind.</p></div>
+        <div class="rule"><span class="num">参</span><p class="jp">名前の後に四十秒以内に死因を書くと、その通りになる。</p><p class="en">If the cause of death is written within 40 seconds, it will happen.</p></div>
+        <div class="rule"><span class="num">肆</span><p class="jp">死因を書かなければ、全てが心臓麻痺となる。</p><p class="en">If the cause of death is not specified, the person will simply die of a heart attack.</p></div>
+        <div class="rule"><span class="num">伍</span><p class="jp">このノートは人間界の地に着いた時点から人間界の物となる。</p><p class="en">This note shall become the property of the human world once it touches the ground of the human world.</p></div>
+      </div>
+
+      <div class="how-to">RULE <span id="ruleNum">01</span> / 05</div>
+    </div>
+  </section>
+
+  <!-- ================= 04 · DARKNESS / GHOST CURSOR ================= -->
+  <section id="dark">
+    <div class="stage">
+      <div class="scene"></div>
+      <i class="shini-eye" data-x="0.5887" data-y="0.2150"></i>
+      <i class="shini-eye" data-x="0.6608" data-y="0.2339"></i>
+      <canvas id="fog"></canvas>
+      <div class="dark-label">第四章 ・ 闇の中</div>
+      <div class="dark-hint"><div class="jp">闇を照らせ</div><div class="en">MOVE TO SEE WHO IS WATCHING</div></div>
+      <div class="dark-copy"><div class="big">人間って、<br><em>面白！！</em></div><div class="who">死神リューク ・ RYUK — “HUMANS ARE SO INTERESTING”</div></div>
+      <i class="ghost" id="ghost"></i>
+    </div>
+  </section>
+
+</main>
+
+
+<script>
+(() => {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const map = (v, a, b) => clamp((v - a) / (b - a));
+  const pad = n => String(n).padStart(3, "0");
+  const dpr = () => Math.min(window.devicePixelRatio || 1, 2);
+  const inView = el => { const r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; };
+
+  /* ---------- frame sequences ---------- */
+  const seqs = {};
+  document.querySelectorAll("[data-frames]").forEach(el => {
+    const canvas = el.querySelector("canvas.seq");
+    seqs[el.id] = { el, canvas, ctx: canvas.getContext("2d"), name: el.dataset.frames, count: +el.dataset.count, frames: [], lastKey: "" };
+  });
+
+  const all = Object.values(seqs);
+  const total = all.reduce((s, x) => s + x.count, 0);
+  let loaded = 0;
+  const loadBar = document.getElementById("loadBar");
+  const loadTxt = document.getElementById("loadTxt");
+
+  Promise.all(all.flatMap(sec =>
+    Array.from({ length: sec.count }, (_, i) => new Promise(res => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        const pct = Math.round(++loaded / total * 100);
+        loadBar.style.width = pct + "%";
+        loadTxt.textContent = "ノートを開いている… " + pct + "%";
+        res();
+      };
+      img.src = `assets/${sec.name}/${pad(i + 1)}.jpg`;
+      sec.frames[i] = img;
+    }))
+  )).then(() => {
+    document.getElementById("loader").classList.add("done");
+    document.body.classList.remove("loading");
+    resize();
+  });
+
+  // draw an image like object-fit: cover, with zoom and offset
+  function drawCover(ctx, img, zoom = 1, ox = 0, oy = 0, focusY = .5) {
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const cw = ctx.canvas.width, ch = ctx.canvas.height;
+    const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight) * zoom;
+    const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(img, (cw - w) / 2 + ox, (ch - h) * focusY + oy, w, h);
+  }
+
+  const pinProgress = el => {
+    const r = el.getBoundingClientRect();
+    return clamp(-r.top / (r.height - innerHeight));
+  };
+
+  /* =========== 01 · KIRA LAUGHS ON SCROLL =========== */
+  const laugh = seqs.laugh;
+  const $ = id => document.getElementById(id);
+  const darkShade = $("darkShade"), redShade = $("redShade"), heroTitle = $("heroTitle"),
+        vertL = $("vertL"), plan = $("plan"), flash = $("flash"), hint = $("scrollHint");
+
+  function renderLaugh(p, t) {
+    const fp = map(p, .08, .8); // frames play from 8% → 80% of the pinned scroll
+    const idx = Math.round(fp * (laugh.count - 1));
+    const zoom = 1.04 + fp * .14 + map(p, .8, 1) * .08;
+    const k = reduced ? 0 : map(p, .45, .82) * (1 - map(p, .9, 1));
+    const sx = (Math.sin(t * .09) + Math.sin(t * .23)) * 6 * k * dpr();
+    const sy = (Math.cos(t * .11) + Math.sin(t * .31)) * 5 * k * dpr();
+    drawCover(laugh.ctx, laugh.frames[idx], zoom, sx, sy, .35);
+
+    darkShade.style.opacity = (1 - map(p, 0, .14)) * .82;
+    redShade.style.opacity = map(p, .35, .8) * (1 - map(p, .84, .95) * .6);
+
+    const tp = map(p, 0, .14);
+    heroTitle.style.opacity = 1 - tp;
+    heroTitle.style.transform = `scale(${1 + tp * .5})`;
+    heroTitle.style.filter = `blur(${tp * 14}px)`;
+    hint.style.opacity = 1 - map(p, 0, .04);
+
+    vertL.style.opacity = map(p, .1, .2) * (1 - map(p, .7, .8));
+    vertL.style.transform = `translateY(${(1 - map(p, .1, .3)) * 40}px)`;
+
+    const pp = map(p, .82, .88);
+    plan.style.opacity = pp;
+    plan.style.transform = `scale(${1.6 - pp * .6})`;
+    flash.style.opacity = (map(p, .8, .84) - map(p, .84, .9)) * .45;
+  }
+
+  /* embers */
+  const emb = $("embers"), ectx = emb.getContext("2d");
+  let sparks = [];
+  const spawn = () => ({
+    x: Math.random() * emb.width, y: emb.height + Math.random() * 40,
+    vx: (Math.random() - .5) * .6, vy: -(0.6 + Math.random() * 2.2) * dpr(),
+    r: (0.6 + Math.random() * 1.8) * dpr(), life: 0, max: 140 + Math.random() * 200
+  });
+  function renderEmbers(amount) {
+    ectx.clearRect(0, 0, emb.width, emb.height);
+    if (reduced) return;
+    const target = Math.round(30 + amount * 140);
+    while (sparks.length < target) sparks.push(spawn());
+    if (sparks.length > target) sparks.length = target;
+    ectx.shadowColor = "#ff5a00"; ectx.shadowBlur = 8 * dpr();
+    for (const s of sparks) {
+      s.life++; s.x += s.vx + Math.sin((s.life + s.max) * .03) * .4; s.y += s.vy;
+      const a = Math.sin(Math.PI * clamp(s.life / s.max));
+      ectx.beginPath();
+      ectx.fillStyle = `rgba(255,${120 + (s.r * 30 | 0)},40,${a * .9})`;
+      ectx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ectx.fill();
+      if (s.life > s.max || s.y < -10) Object.assign(s, spawn());
+    }
+  }
+
+  /* =========== 02 · EYES FOLLOW THE CURSOR =========== */
+  // Measured left-pupil x for frames 17–57: the stretch where the eyes sweep steadily left → right.
+  const EYE_FIRST = 17;
+  const PUPIL_X = [269,269,269,269,270,276,284,290,298,302,310,315,321,329,335,341,341,342,342,342,345,348,353,357,359,359,359,359,360,363,365,370,372,374,374,374,375,375,375,375,376];
+  const PMIN = 269, PMAX = 376;
+  const eyes = seqs.eyes;
+  const lookDot = $("lookDot");
+  let lookTarget = .5, look = .5;
+  addEventListener("pointermove", e => { lookTarget = e.clientX / innerWidth; });
+
+  function eyeFrame(v) {
+    const want = PMIN + v * (PMAX - PMIN);
+    let best = 0, d = 1e9;
+    PUPIL_X.forEach((x, i) => { const dd = Math.abs(x - want); if (dd < d) { d = dd; best = i; } });
+    return EYE_FIRST - 1 + best;
+  }
+  function renderEyes() {
+    look += (lookTarget - look) * .12;
+    const idx = eyeFrame(clamp(look));
+    const key = idx + ":" + look.toFixed(3) + ":" + eyes.canvas.width;
+    if (key !== eyes.lastKey) { drawCover(eyes.ctx, eyes.frames[idx], 1.08, (clamp(look) - .5) * eyes.canvas.width * .05, 0, .45); eyes.lastKey = key; }
+    lookDot.style.left = clamp(look) * 100 + "%";
+  }
+
+  /* =========== 03 · DARKNESS + GHOST CURSOR REVEAL =========== */
+  const dark = $("dark"), fog = $("fog"), fctx = fog.getContext("2d"), ghost = $("ghost");
+  const eyesShini = [...dark.querySelectorAll(".shini-eye")];
+  const IMG_W = 1672, IMG_H = 941;
+  const trail = [];
+  let gx = -999, gy = -999, tx = -999, ty = -999, pointerIn = false, lastDarkMove = -1e9;
+
+  function sizeFog() {
+    const r = fog.getBoundingClientRect(), top = fog.offsetTop;
+    fog.width = Math.round(r.width * dpr());
+    fog.height = Math.round(r.height * dpr());
+    fctx.fillStyle = "#000";
+    fctx.fillRect(0, 0, fog.width, fog.height);
+    // pin Ryuk's glowing eyes onto the cover-fitted background
+    const s = Math.max(r.width / IMG_W, r.height / IMG_H);
+    const ox = (r.width - IMG_W * s) / 2, oy = (r.height - IMG_H * s) / 2;
+    eyesShini.forEach(el => {
+      el.style.left = ox + +el.dataset.x * IMG_W * s + "px";
+      el.style.top = top + oy + +el.dataset.y * IMG_H * s + "px";
+      el.style.transform = `scale(${clamp(s * 1.7, .5, 2)})`;
+    });
+  }
+  const darkPoint = e => {
+    const r = fog.getBoundingClientRect();
+    tx = e.clientX - r.left; ty = e.clientY - r.top;
+    if (gx < -900) { gx = tx; gy = ty; }
+    pointerIn = true; lastDarkMove = performance.now();
+    dark.classList.add("touched");
+  };
+  dark.addEventListener("pointermove", darkPoint);
+  dark.addEventListener("pointerdown", darkPoint);
+  dark.addEventListener("pointerleave", () => { pointerIn = false; });
+
+  function renderDark(now) {
+    const r = fog.getBoundingClientRect();
+    // idle: a lone wisp wanders through the dark on its own
+    if (!pointerIn || now - lastDarkMove > 4000) {
+      const w = now / 1000;
+      tx = r.width * (.5 + Math.sin(w * .45) * .36);
+      ty = r.height * (.45 + Math.sin(w * .7 + 1) * .28);
+      if (gx < -900) { gx = tx; gy = ty; }
+    }
+    gx += (tx - gx) * .14; gy += (ty - gy) * .14;
+    ghost.style.transform = `translate3d(${gx}px, ${gy + fog.offsetTop}px, 0)`;
+
+    trail.unshift({ x: gx * dpr(), y: gy * dpr() });
+    if (trail.length > 14) trail.pop();
+
+    // darkness slowly closes back in…
+    fctx.globalCompositeOperation = "source-over";
+    fctx.fillStyle = "rgba(0,0,0,0.075)";
+    fctx.fillRect(0, 0, fog.width, fog.height);
+    // …while the ghost burns soft holes along its trail
+    fctx.globalCompositeOperation = "destination-out";
+    const base = Math.min(fog.width, fog.height) * .19;
+    trail.forEach((p, i) => {
+      const k = 1 - i / trail.length;
+      const rad = base * (.35 + k * .65) + Math.sin(now / 300 + i) * 4 * dpr();
+      const g = fctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad);
+      g.addColorStop(0, `rgba(0,0,0,${.55 * k})`);
+      g.addColorStop(.6, `rgba(0,0,0,${.2 * k})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      fctx.fillStyle = g;
+      fctx.beginPath();
+      fctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
+      fctx.fill();
+    });
+    fctx.globalCompositeOperation = "source-over";
+  }
+
+  /* =========== 04 · RULES (book on scroll) =========== */
+  const notes = seqs.rules;
+  const rules = [...document.querySelectorAll(".rule")];
+  const ruleNum = $("ruleNum");
+  function renderRules(p) {
+    const idx = Math.round(map(p, 0, .92) * (notes.count - 1));
+    const key = idx + ":" + notes.canvas.width;
+    if (key !== notes.lastKey) { drawCover(notes.ctx, notes.frames[idx], 1.02); notes.lastKey = key; }
+    let shown = 0;
+    rules.forEach((r, i) => { const on = p > .04 + i * .17; r.classList.toggle("on", on); if (on) shown = i + 1; });
+    ruleNum.textContent = String(Math.max(1, shown)).padStart(2, "0");
+    notes.canvas.style.filter = `brightness(${1 - map(p, .88, 1) * .75})`;
+  }
+
+  /* ---------- resize ---------- */
+  function resize() {
+    for (const s of all) {
+      const r = s.canvas.getBoundingClientRect();
+      s.canvas.width = Math.round(r.width * dpr());
+      s.canvas.height = Math.round(r.height * dpr());
+      s.lastKey = "";
+    }
+    emb.width = innerWidth * dpr();
+    emb.height = innerHeight * dpr();
+    sizeFog();
+  }
+  addEventListener("resize", resize);
+  resize();
+
+  /* ---------- side progress ---------- */
+  const progressBar = $("progressBar"), progressNum = $("progressNum");
+  const chapters = ["laugh", "eyes", "rules", "dark"].map($);
+
+  /* ---------- main loop ---------- */
+  let t = 0;
+  function loop(now) {
+    t++;
+    if (inView(laugh.el)) { const p = pinProgress(laugh.el); renderLaugh(p, t); renderEmbers(map(p, .2, .85)); }
+    if (inView(eyes.el)) renderEyes();
+    if (inView(dark)) renderDark(now);
+    if (inView(notes.el)) renderRules(pinProgress(notes.el));
+
+    const vh = innerHeight;
+    progressBar.style.height = clamp(scrollY / (document.documentElement.scrollHeight - vh)) * 100 + "%";
+    let ch = 1;
+    chapters.forEach((c, i) => { if (c.getBoundingClientRect().top < vh * .5) ch = i + 1; });
+    progressNum.textContent = String(ch).padStart(2, "0");
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
