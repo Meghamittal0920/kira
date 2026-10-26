@@ -189,7 +189,7 @@
     background: radial-gradient(ellipse, #ff3b3b 0%, rgba(255,0,0,.55) 35%, transparent 70%); filter: blur(1px); }
   .shini-eye::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: blink 5s infinite; }
   @keyframes blink { 0%, 92%, 100% { opacity: .9; } 95% { opacity: 0; } }
-  .ghost { position: absolute; z-index: 5; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; pointer-events: none;
+  .ghost { opacity: 0; transition: opacity .3s; position: absolute; z-index: 5; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; pointer-events: none;
     background: radial-gradient(circle, #fff 0%, rgba(255,220,220,.6) 40%, transparent 70%); box-shadow: 0 0 30px 10px rgba(255,80,80,.25); mix-blend-mode: screen; }
   .dark-copy { position: absolute; z-index: 4; left: clamp(16px, 6vw, 90px); bottom: 10vh; pointer-events: none; }
   .dark-copy .big { font-family: var(--brush); font-size: clamp(48px, 8vw, 120px); line-height: 1.05; text-shadow: 0 6px 40px #000; }
@@ -468,7 +468,10 @@
   const eyesShini = [...dark.querySelectorAll(".shini-eye")];
   const IMG_W = 1672, IMG_H = 941;
   const trail = [];
-  let gx = -999, gy = -999, tx = -999, ty = -999, pointerIn = false, lastDarkMove = -1e9;
+  // last known mouse position in viewport coords (tracked page-wide so scrolling keeps the light under it)
+  let mouseX = null, mouseY = null, gx = null, gy = null;
+  addEventListener("pointermove", e => { mouseX = e.clientX; mouseY = e.clientY; });
+  addEventListener("pointerdown", e => { mouseX = e.clientX; mouseY = e.clientY; });
 
   function sizeFog() {
     const r = fog.getBoundingClientRect(), top = fog.offsetTop;
@@ -485,31 +488,21 @@
       el.style.transform = `scale(${clamp(s * 1.7, .5, 2)})`;
     });
   }
-  const darkPoint = e => {
-    const r = fog.getBoundingClientRect();
-    tx = e.clientX - r.left; ty = e.clientY - r.top;
-    if (gx < -900) { gx = tx; gy = ty; }
-    pointerIn = true; lastDarkMove = performance.now();
-    dark.classList.add("touched");
-  };
-  dark.addEventListener("pointermove", darkPoint);
-  dark.addEventListener("pointerdown", darkPoint);
-  dark.addEventListener("pointerleave", () => { pointerIn = false; });
-
   function renderDark(now) {
     const r = fog.getBoundingClientRect();
-    // idle: a lone wisp wanders through the dark on its own
-    if (!pointerIn || now - lastDarkMove > 4000) {
-      const w = now / 1000;
-      tx = r.width * (.5 + Math.sin(w * .45) * .36);
-      ty = r.height * (.45 + Math.sin(w * .7 + 1) * .28);
-      if (gx < -900) { gx = tx; gy = ty; }
+    const inside = mouseX !== null && mouseX >= r.left && mouseX <= r.right && mouseY >= r.top && mouseY <= r.bottom;
+    if (inside) {
+      const tx = mouseX - r.left, ty = mouseY - r.top;
+      if (gx === null) { gx = tx; gy = ty; }
+      gx += (tx - gx) * .45; gy += (ty - gy) * .45; // close follow, just a touch of ghostly lag
+      dark.classList.add("touched");
+      trail.unshift({ x: gx * dpr(), y: gy * dpr() });
+    } else {
+      trail.pop(); // pointer gone: trail dissolves, darkness takes over
     }
-    gx += (tx - gx) * .14; gy += (ty - gy) * .14;
-    ghost.style.transform = `translate3d(${gx}px, ${gy + fog.offsetTop}px, 0)`;
-
-    trail.unshift({ x: gx * dpr(), y: gy * dpr() });
     if (trail.length > 14) trail.pop();
+    ghost.style.opacity = inside ? 1 : 0;
+    if (gx !== null) ghost.style.transform = `translate3d(${gx}px, ${gy + fog.offsetTop}px, 0)`;
 
     // darkness slowly closes back in…
     fctx.globalCompositeOperation = "source-over";
@@ -517,13 +510,13 @@
     fctx.fillRect(0, 0, fog.width, fog.height);
     // …while the ghost burns soft holes along its trail
     fctx.globalCompositeOperation = "destination-out";
-    const base = Math.min(fog.width, fog.height) * .19;
+    const base = Math.min(fog.width, fog.height) * .3;
     trail.forEach((p, i) => {
       const k = 1 - i / trail.length;
       const rad = base * (.35 + k * .65) + Math.sin(now / 300 + i) * 4 * dpr();
       const g = fctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad);
-      g.addColorStop(0, `rgba(0,0,0,${.55 * k})`);
-      g.addColorStop(.6, `rgba(0,0,0,${.2 * k})`);
+      g.addColorStop(0, `rgba(0,0,0,${.6 * k})`);
+      g.addColorStop(.65, `rgba(0,0,0,${.3 * k})`);
       g.addColorStop(1, "rgba(0,0,0,0)");
       fctx.fillStyle = g;
       fctx.beginPath();
